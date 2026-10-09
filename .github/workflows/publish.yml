@@ -1,0 +1,37 @@
+name: publish-site
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: source URL of index.html
+        required: true
+      md5:
+        description: expected md5
+        required: true
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify
+        run: |
+          curl -fsSL --retry 5 -o index.html "${{ inputs.url }}"
+          ls -la index.html
+          echo "${{ inputs.md5 }}  index.html" | md5sum -c -
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Сайт: канон 7.2, v4 (index.html)" || echo nothing
+          git push
+      - name: Try enable Pages (main / root)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST repos/${{ github.repository }}/pages -f 'source[branch]=main' -f 'source[path]=/' || gh api repos/${{ github.repository }}/pages
